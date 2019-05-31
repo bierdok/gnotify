@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
-__version__ = "0.0.1"
-__usage__ = "Usage: gnotify -H [ip-address] -l [language] [text-to-speech]"
+__version__ = "0.1.0"
+__usage__ = "Usage: gnotify -H [ip-addresses] -l [language] [text-to-speech]"
 
 
 def main():
@@ -11,13 +11,13 @@ def main():
     import sys
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "vhH:l:", ["version", "help", "ip-address=", "language="])
+        opts, args = getopt.getopt(sys.argv[1:], "vhH:l:", ["version", "help", "ip-addresses=", "language="])
     except getopt.GetoptError:
         print(__usage__)
         sys.exit(2)
 
     lang = os.getenv("GNOTIFY_LANG")
-    ip = os.getenv("GNOTIFY_IP")
+    ips = os.getenv("GNOTIFY_IPS").split(',')
     tts = " ".join(args)
 
     for opt, arg in opts:
@@ -29,15 +29,15 @@ def main():
             sys.exit(2)
         elif opt in ("-l", "--language"):
             lang = arg
-        elif opt in ("-H", "--ip_address"):
-            ip = arg
+        elif opt in ("-H", "--ip-addresses"):
+            ips = arg.split(',')
 
     import re
 
     errors = []
 
-    if not ip:
-        errors.append('Please enter an ip address as an option.')
+    if not ips:
+        errors.append('Please enter one or more ip addresses separated by commas as an option.')
 
     if not lang:
         errors.append('Please enter a language code (ISO 639-1) as an option.')
@@ -98,31 +98,32 @@ def main():
 
         def log_message(self, format, *args): return
 
-    try:
-        cast = Chromecast(ip)
-    except ChromecastConnectionError as e:
-        print(e)
-        sys.exit(2)
-
-    server_ip = cast.socket_client.socket.getsockname()[0]
-    server = ThreadingTCPServer((server_ip, 0), FileHTTPRequestHandler)
-    server_port = str(server.server_address[1])
-
-    thread = Thread(target=server.serve_forever)
-    thread.daemon = True
-    thread.start()
-
-    cast.wait()
-
-    mc = cast.media_controller
-    mc.play_media("http://{}:{}".format(server_ip, server_port), "audio/mpeg")
-
-    while mc.status.player_state != "IDLE":
+    for ip in ips:
         try:
-            time.sleep(0.05)
-        except KeyboardInterrupt:
-            mc.stop()
-            break
+            cast = Chromecast(ip)
+        except ChromecastConnectionError as e:
+            print(e)
+            sys.exit(2)
 
-    server.shutdown()
-    server.server_close()
+        server_ip = cast.socket_client.socket.getsockname()[0]
+        server = ThreadingTCPServer((server_ip, 0), FileHTTPRequestHandler)
+        server_port = str(server.server_address[1])
+
+        thread = Thread(target=server.serve_forever)
+        thread.daemon = True
+        thread.start()
+
+        cast.wait()
+
+        mc = cast.media_controller
+        mc.play_media("http://{}:{}".format(server_ip, server_port), "audio/mpeg")
+
+        while mc.status.player_state != "IDLE":
+            try:
+                time.sleep(0.05)
+            except KeyboardInterrupt:
+                mc.stop()
+                break
+
+        server.shutdown()
+        server.server_close()
