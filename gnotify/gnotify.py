@@ -16,8 +16,8 @@ def main():
         print(__usage__)
         sys.exit(2)
 
-    lang = os.getenv("GNOTIFY_LANG")
-    ips = os.getenv("GNOTIFY_IPS").split(',')
+    lang = os.getenv("GNOTIFY_LANG", "")
+    ips = [ip for ip in os.getenv("GNOTIFY_IPS", "").split(',') if ip]
     tts = " ".join(args)
 
     for opt, arg in opts:
@@ -30,16 +30,16 @@ def main():
         elif opt in ("-l", "--language"):
             lang = arg
         elif opt in ("-H", "--ip-addresses"):
-            ips = arg.split(',')
+            ips = [ip for ip in arg.split(',') if ip]
 
     import re
 
     errors = []
 
-    if not ips:
+    if len(ips) == 0:
         errors.append('Please enter one or more ip addresses separated by commas as an option.')
 
-    if not lang:
+    if str(lang) == "":
         errors.append('Please enter a language code (ISO 639-1) as an option.')
     elif not re.match(r"^\w{2}$", lang):
         errors.append('Please enter a valid language code (ISO 639-1) as an option.')
