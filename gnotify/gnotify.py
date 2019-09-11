@@ -118,6 +118,8 @@ def main():
         mc = cast.media_controller
         mc.play_media("http://{}:{}".format(server_ip, server_port), "audio/mpeg")
 
+        time.sleep(.5)
+
         while mc.status.player_state != "IDLE":
             try:
                 time.sleep(0.05)
